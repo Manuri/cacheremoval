@@ -4,10 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.sample</groupId>
-    <artifactId>com.sample.cacheremoval</artifactId>
+    <groupId>org.wso2.carbon.apimgt.extension</groupId>
+    <artifactId>org.wso2.carbon.apimgt.extension.cacheinvalidation</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
+    <description>This bundle contains an implementation of OauthEventListener for clearing revoked access tokens
+        from API Manager Key Manager Cache
+    </description>
 
     <dependencies>
         <dependency>
@@ -29,6 +32,16 @@
             <groupId>org.wso2.carbon.apimgt</groupId>
             <artifactId>org.wso2.carbon.apimgt.impl</artifactId>
             <version>${carbon.apimgt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon.apimgt</groupId>
+            <artifactId>org.wso2.carbon.apimgt.keymgt</artifactId>
+            <version>${carbon.apimgt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon</groupId>
+            <artifactId>org.wso2.carbon.utils</artifactId>
+            <version>${carbon.kernel.version}</version>
         </dependency>
     </dependencies>
 
@@ -56,10 +69,10 @@
                     <instructions>
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Bundle-Name>${project.artifactId}</Bundle-Name>
-                        <Bundle-Activator>com.sample.cacheremoval.internal.Activator</Bundle-Activator>
+                        <Bundle-Activator>org.wso2.carbon.apimgt.extension.cacheinvalidation.internal.Activator</Bundle-Activator>
                         <Export-package>
-                            com.sample.cacheremoval.*;version="${project.version}",
-                            !com.sample.cacheremoval.internal;version="${project.version}"
+                            org.wso2.carbon.apimgt.extension.cacheinvalidation.*;version="${project.version}",
+                            !org.wso2.carbon.apimgt.extension.cacheinvalidation.internal;version="${project.version}"
                         </Export-package>
                         <Import-Package>
                             javax.cache,
@@ -67,7 +80,9 @@
                             org.apache.commons.logging,
                             org.wso2.carbon.identity.oauth2.*;version="${carbon.identity.import.pkg.version}",
                             org.osgi.framework; version="${eclipse.osgi.import.pkg.version}",
-                            org.wso2.carbon.apimgt.impl;version="${carbon.apimgt.import.pkg.version}"
+                            org.wso2.carbon.apimgt.impl;version="${carbon.apimgt.import.pkg.version}",
+                            org.wso2.carbon.apimgt.keymgt.util.*;version="${carbon.apimgt.import.pkg.version}",
+                            org.wso2.carbon.context.*;version="${carbon.kernel.import.pkg.version}"
                         </Import-Package>
                     </instructions>
                 </configuration>
@@ -80,9 +95,11 @@
         <eclipse.osgi.version>3.9.1.v20130814-1242</eclipse.osgi.version>
         <commons.lang.version>2.6.0.wso2v1</commons.lang.version>
         <carbon.apimgt.version>6.0.4</carbon.apimgt.version>
+        <carbon.kernel.version>4.4.7</carbon.kernel.version>
         <carbon.identity.import.pkg.version>[5.1.0,5.2.0)</carbon.identity.import.pkg.version>
         <eclipse.osgi.import.pkg.version>[1.7.0, 2.0.0)</eclipse.osgi.import.pkg.version>
-        <carbon.apimgt.import.pkg.version>[6.0.0,6.1.0)</carbon.apimgt.import.pkg.version>
+        <carbon.apimgt.import.pkg.version>[6.0.0,7.0.0)</carbon.apimgt.import.pkg.version>
+        <carbon.kernel.import.pkg.version>[4.4.0,4.5.0)</carbon.kernel.import.pkg.version>
 
         <maven.bundle.plugin.version>2.3.7</maven.bundle.plugin.version>
     </properties>
