@@ -1,5 +1,6 @@
 package org.wso2.carbon.apimgt.extension.cacheinvalidation;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.impl.APIConstants;
@@ -19,16 +20,27 @@ import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
 import org.wso2.carbon.identity.oauth2.model.RefreshTokenValidationDataDO;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 
+import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import javax.cache.Cache;
 import javax.cache.Caching;
-import java.util.Iterator;
 
 /**
  * This OAuthEventListener removes the access token entries from API Manager Key Manager cache
  * when an access token is revoked by a client.
  */
 public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEventListener {
-    private Log log = LogFactory.getLog(RevokedTokenCacheEntryRemovalOauthEventListener.class);
+    private static Log log = LogFactory.getLog(RevokedTokenCacheEntryRemovalOauthEventListener.class);
+
+    private ExecutorService executor;
+
+    public RevokedTokenCacheEntryRemovalOauthEventListener() {
+        ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat
+                ("CacheEntryRemovalExecutor-%d").build();
+        executor = Executors.newFixedThreadPool(1, namedThreadFactory);
+    }
 
     public void onPreTokenIssue(OAuth2AccessTokenReqDTO oAuth2AccessTokenReqDTO,
             OAuthTokenReqMessageContext oAuthTokenReqMessageContext) throws IdentityOAuth2Exception {
@@ -80,45 +92,63 @@ public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEve
             OAuthRevocationResponseDTO oAuthRevocationResponseDTO, AccessTokenDO accessTokenDO,
             RefreshTokenValidationDataDO refreshTokenValidationDataDO) throws IdentityOAuth2Exception {
         if (accessTokenDO == null) {
-            log.warn("Unable to remove the cache entry since access token you tried to revoke does not exist.");
+            log.warn("Unable to remove the cache entry since access token you tried to revoke does not exist");
             return;
         }
 
         if (APIKeyMgtDataHolder.getKeyCacheEnabledKeyMgt()) {
-            final AccessTokenDO anAccessTokenDO = accessTokenDO;
-            Thread thread = new Thread(new Runnable() {
-                PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext
-                        .getThreadLocalCarbonContext();
-                int tenantId = carbonContext.getTenantId();
-                String tenantDomain = carbonContext.getTenantDomain();
-                public void run() {
-                    try {
-                        PrivilegedCarbonContext.startTenantFlow();
-                        PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
-                        carbonContext.setTenantId(tenantId);
-                        carbonContext.setTenantDomain(tenantDomain);
-                        Cache keyManagerCache = Caching.getCacheManager(APIConstants.API_MANAGER_CACHE_MANAGER).
-                                getCache(APIConstants.KEY_CACHE_NAME);
-                        Iterator<Object> iterator = keyManagerCache.iterator();
-                        while (iterator.hasNext()) {
-                            Cache.Entry cacheEntry = (Cache.Entry) iterator.next();
-                            if (cacheEntry != null) {
-                                String cachedAccessToken = cacheEntry.getKey().toString().split(":")[0];
-                                if (cachedAccessToken.equals(anAccessTokenDO.getAccessToken())) {
-                                    keyManagerCache.remove(cacheEntry.getKey());
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Key Manager cache entry was removed for the access token after "
-                                                + "revocation. " + "Consumer key: " + anAccessTokenDO.getConsumerKey());
-                                    }
-                                }
+            PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext
+                    .getThreadLocalCarbonContext();
+            int tenantId = carbonContext.getTenantId();
+            String tenantDomain = carbonContext.getTenantDomain();
+            CacheEntryRemovalTask cacheEntryRemovalTask = new CacheEntryRemovalTask(tenantId, tenantDomain,
+                    accessTokenDO.getAccessToken(), accessTokenDO.getConsumerKey());
+            executor.execute(cacheEntryRemovalTask);
+        }
+    }
+
+    /**
+     * This class represents the task which is responsible of removing the key manager cache entry for a given access
+     * token.
+     */
+    private static class CacheEntryRemovalTask implements Runnable {
+        private final int tenantId;
+        private final String tenantDomain;
+        private final String accessToken;
+        private final String consumerKey;
+
+        CacheEntryRemovalTask(int tenantId, String tenantDomain, String accessToken, String consumerKey) {
+            this.tenantId = tenantId;
+            this.tenantDomain = tenantDomain;
+            this.accessToken = accessToken;
+            this.consumerKey = consumerKey;
+        }
+
+        public void run() {
+            try {
+                PrivilegedCarbonContext.startTenantFlow();
+                PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
+                carbonContext.setTenantId(tenantId);
+                carbonContext.setTenantDomain(tenantDomain);
+                Cache keyManagerCache = Caching.getCacheManager(APIConstants.API_MANAGER_CACHE_MANAGER).
+                        getCache(APIConstants.KEY_CACHE_NAME);
+                Iterator<Object> iterator = keyManagerCache.iterator();
+                while (iterator.hasNext()) {
+                    Cache.Entry cacheEntry = (Cache.Entry) iterator.next();
+                    if (cacheEntry != null) {
+                        String cachedAccessToken = cacheEntry.getKey().toString().split(":")[0];
+                        if (cachedAccessToken.equals(accessToken)) {
+                            keyManagerCache.remove(cacheEntry.getKey());
+                            if (log.isDebugEnabled()) {
+                                log.debug("Key Manager cache entry was removed for the access token after "
+                                        + "revocation. " + "Consumer key: " + consumerKey);
                             }
                         }
-                    } finally {
-                        PrivilegedCarbonContext.endTenantFlow();
                     }
                 }
-            });
-            thread.start();
+            } finally {
+                PrivilegedCarbonContext.endTenantFlow();
+            }
         }
     }
 

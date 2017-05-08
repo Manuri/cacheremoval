@@ -43,6 +43,11 @@
             <artifactId>org.wso2.carbon.utils</artifactId>
             <version>${carbon.kernel.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -82,7 +87,8 @@
                             org.osgi.framework; version="${eclipse.osgi.import.pkg.version}",
                             org.wso2.carbon.apimgt.impl;version="${carbon.apimgt.import.pkg.version}",
                             org.wso2.carbon.apimgt.keymgt.util.*;version="${carbon.apimgt.import.pkg.version}",
-                            org.wso2.carbon.context.*;version="${carbon.kernel.import.pkg.version}"
+                            org.wso2.carbon.context.*;version="${carbon.kernel.import.pkg.version}",
+                            com.google.common.util.concurrent.*;version=${guava.version}
                         </Import-Package>
                     </instructions>
                 </configuration>
@@ -96,6 +102,8 @@
         <commons.lang.version>2.6.0.wso2v1</commons.lang.version>
         <carbon.apimgt.version>6.0.4</carbon.apimgt.version>
         <carbon.kernel.version>4.4.7</carbon.kernel.version>
+        <guava.version>19.0</guava.version>
+
         <carbon.identity.import.pkg.version>[5.1.0,5.2.0)</carbon.identity.import.pkg.version>
         <eclipse.osgi.import.pkg.version>[1.7.0, 2.0.0)</eclipse.osgi.import.pkg.version>
         <carbon.apimgt.import.pkg.version>[6.0.0,7.0.0)</carbon.apimgt.import.pkg.version>
