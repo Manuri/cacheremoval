@@ -6,7 +6,7 @@
 
     <groupId>org.wso2.carbon.apimgt.extension</groupId>
     <artifactId>org.wso2.carbon.apimgt.extension.cacheinvalidation</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>bundle</packaging>
     <description>This bundle contains an implementation of OauthEventListener for clearing revoked access tokens
         from API Manager Key Manager Cache

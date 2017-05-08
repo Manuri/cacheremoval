@@ -38,6 +38,15 @@ public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEve
     private static final String THREAD_COUNT_SYSTEM_PROPERTY = "cacheEntryRemoverThreadCount";
 
     public RevokedTokenCacheEntryRemovalOauthEventListener() {
+        if (APIKeyMgtDataHolder.getKeyCacheEnabledKeyMgt()) {
+            initializeThreadPool();
+        }
+    }
+
+    /**
+     * This initializes a thread pool
+     */
+    private void initializeThreadPool() {
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat
                 ("CacheEntryRemovalExecutor-%d").build();
         int numberOfThreads = 1;
