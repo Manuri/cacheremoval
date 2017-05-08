@@ -35,11 +35,27 @@ public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEve
     private static Log log = LogFactory.getLog(RevokedTokenCacheEntryRemovalOauthEventListener.class);
 
     private ExecutorService executor;
+    private static final String THREAD_COUNT_SYSTEM_PROPERTY = "cacheEntryRemoverThreadCount";
 
     public RevokedTokenCacheEntryRemovalOauthEventListener() {
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat
                 ("CacheEntryRemovalExecutor-%d").build();
-        executor = Executors.newFixedThreadPool(1, namedThreadFactory);
+        int numberOfThreads = 1;
+        if (System.getProperty(THREAD_COUNT_SYSTEM_PROPERTY) != null) {
+            try {
+                numberOfThreads = Integer.parseInt(System.getProperty(THREAD_COUNT_SYSTEM_PROPERTY));
+                if (numberOfThreads <= 0) {
+                    log.warn("The number of threads in the key manager cache entry removal thread pool can not be "
+                            + numberOfThreads + ". Using the default number of threads: 1");
+                    numberOfThreads = 1;
+                }
+            } catch (NumberFormatException e) {
+                log.error("Provided number of threads for key manager cache entry removal thread pool is invalid. "
+                        + "Using the default number of threads: 1", e);
+                numberOfThreads = 1;
+            }
+        }
+        executor = Executors.newFixedThreadPool(numberOfThreads, namedThreadFactory);
     }
 
     public void onPreTokenIssue(OAuth2AccessTokenReqDTO oAuth2AccessTokenReqDTO,
@@ -97,8 +113,7 @@ public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEve
         }
 
         if (APIKeyMgtDataHolder.getKeyCacheEnabledKeyMgt()) {
-            PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext
-                    .getThreadLocalCarbonContext();
+            PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
             int tenantId = carbonContext.getTenantId();
             String tenantDomain = carbonContext.getTenantDomain();
             CacheEntryRemovalTask cacheEntryRemovalTask = new CacheEntryRemovalTask(tenantId, tenantDomain,
@@ -130,8 +145,8 @@ public class RevokedTokenCacheEntryRemovalOauthEventListener implements OAuthEve
                 PrivilegedCarbonContext carbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
                 carbonContext.setTenantId(tenantId);
                 carbonContext.setTenantDomain(tenantDomain);
-                Cache keyManagerCache = Caching.getCacheManager(APIConstants.API_MANAGER_CACHE_MANAGER).
-                        getCache(APIConstants.KEY_CACHE_NAME);
+                Cache keyManagerCache = Caching.getCacheManager(APIConstants.API_MANAGER_CACHE_MANAGER)
+                        .getCache(APIConstants.KEY_CACHE_NAME);
                 Iterator<Object> iterator = keyManagerCache.iterator();
                 while (iterator.hasNext()) {
                     Cache.Entry cacheEntry = (Cache.Entry) iterator.next();
